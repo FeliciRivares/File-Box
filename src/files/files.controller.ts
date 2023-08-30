@@ -1,3 +1,4 @@
+import { JwtAuthGuard } from './../auth/guards/jwt.guard';
 import {
   Controller,
   Get,
@@ -10,22 +11,28 @@ import {
   UseInterceptors,
   ParseFilePipe,
   MaxFileSizeValidator,
+  UseGuards,
+  Query,
 } from '@nestjs/common';
 import { FilesService } from './files.service';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
-import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { fileStorage } from './storage';
+import { UserId } from 'src/decorators/user-id.decorator';
+import { FileType } from './entities/file.entity';
 
 @Controller('files')
 @ApiTags('Files')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
   @Get()
-  findAll() {
-    return this.filesService.findAll()
+  findAll(@UserId() userId: number, @Query('type') fileType: FileType) {
+    return this.filesService.findAll(userId, fileType);
   }
 
   @Post()
@@ -53,7 +60,13 @@ export class FilesController {
       }),
     )
     file: Express.Multer.File,
+    @UserId() userId: number,
   ) {
-    return file;
+    return this.filesService.create(file, userId);
+  }
+
+  @Delete()
+  remove(@UserId() userId: number, @Query('id') ids: string) {
+    return this.filesService.remove(userId, ids)
   }
 }
